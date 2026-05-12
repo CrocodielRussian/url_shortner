@@ -33,4 +33,13 @@ public class UserService {
 
         return newUser;
     }
+
+    public User authenticate(String username, String password) {
+        User user = userRepository.findByUsername(username).orElseThrow(
+                () -> new IllegalArgumentException("Invalid credentials")
+        );
+        if (!passwordEncoder.matches(password, user.getPassword()))
+            throw new IllegalArgumentException("Invalid password");
+        return user;
+    }
 }
