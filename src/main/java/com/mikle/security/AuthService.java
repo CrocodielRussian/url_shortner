@@ -1,62 +1,60 @@
 package com.mikle.security;
 
+import com.mikle.dto.AuthRequest;
+import com.mikle.dto.AuthResponse;
+import com.mikle.dto.RegisterRequest;
 import com.mikle.model.User;
-import com.mikle.model.UserDetailsImpl;
+import com.mikle.repository.UserRepository;
 import com.mikle.service.UserService;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final UserService userService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
 
-@RestController
-@RequestMapping("/api/auth")
-public class AuthController {
-    @Autowired
-    private UserService userService;
+    public AuthResponse register(@RequestBody RegisterRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("User is already exist");
+        }
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        userRepository.save(user);
 
-    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+        UserDetailsImpl userDetails = new UserDetailsImpl(user);
+        String jwt = jwtUtils.generateToken(userDetails);
 
-    @Getter
-    @Setter
-    private static class AuthRequest {
-        private String username;
-        private String password;
+        return new AuthResponse(jwt, user.getId(), user.getUsername());
     }
 
-    @PostMapping
-    public ResponseEntity<Void> register(@RequestBody AuthRequest request) {
-        userService.register(request.getUsername(), request.getPassword());
-        return ResponseEntity.ok().build();
-    }
+    public AuthResponse login(@RequestBody AuthRequest request) {
+        Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+        );
 
-    @PostMapping
-    public ResponseEntity<Void> login(@RequestBody AuthRequest request) {
-        UserDetailsImpl user = userService.authenticate(request.getUsername(), request.getPassword());
+        UserDetailsImpl user  = (UserDetailsImpl) auth.getPrincipal();
+        String jwt = jwtUtils.generateToken(user);
 
-        UsernamePasswordAuthenticationToken auth =
-            new UsernamePasswordAuthenticationToken(
-                    user,
-                    null,
-                    user.getAuthorities()
-            );
-
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(auth);
-        SecurityContextHolder.setContext(context);
-
-        String jwt = jwtUtils.generateJwtToken(auth);
-
-        return ResponseEntity.ok().build();
+        return new AuthResponse(jwt, user.getId(), user.getUsername());
     }
 
 
