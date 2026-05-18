@@ -5,8 +5,8 @@ import com.mikle.model.User;
 import com.mikle.repository.UrlRepository;
 import com.mikle.repository.UserRepository;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,16 +14,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @Getter
 @Setter
 @Service
+@RequiredArgsConstructor
 public class UrlService {
-    @Autowired
     private final UrlRepository urlRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    public UrlService(UrlRepository repo) {
-        this.urlRepository = repo;
-    }
+    private final UserRepository userRepository;
 
     @Transactional
     public Url addUrl(String url) {
