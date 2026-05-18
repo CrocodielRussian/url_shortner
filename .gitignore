@@ -40,6 +40,7 @@ gradle/
 
 ### VS Code ###
 .vscode/
+.angular/
 
 ### Mac OS ###
 .DS_Store
