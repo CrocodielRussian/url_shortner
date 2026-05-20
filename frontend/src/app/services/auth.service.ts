@@ -1,20 +1,19 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
-import { catchError,  map, tap } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
-import { Auth } from './auth';
 import { environment } from '../../environments/environment.prod';
 
 export interface User {
-  id: string;
+  id: number | null;
   username: string;
-  password: string;
 }
 
 export interface AuthResponse {
   token: string;
-  user: User;
+  id: number;
+  username: string;
 }
 
 @Injectable({
@@ -26,7 +25,10 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
 
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private router: Router
+  ) {
      this.loadUserFromToken();
   }
 
@@ -51,6 +53,7 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem('token');
     this.currentUserSubject.next(null);
+    this.router.navigate(['/login']);
   }
 
   getToken(): string | null {
@@ -58,7 +61,10 @@ export class AuthService {
   }
   private handleAuthResponse(response: AuthResponse): void {
     localStorage.setItem('token', response.token);
-    this.currentUserSubject.next(response.user);
+    this.currentUserSubject.next({
+      id: response.id,
+      username: response.username
+    });
   }
 
   private loadUserFromToken(): void {
@@ -66,9 +72,8 @@ export class AuthService {
     if (token) {
       const payload = this.parseJwt(token);
       const user: User = {
-        id: payload.sub,
-        username: payload.username,
-        password: payload.password
+        id: null,
+        username: payload.sub
       };
       this.currentUserSubject.next(user);
     }

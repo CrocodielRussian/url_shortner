@@ -2,9 +2,8 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { UrlService } from '../services/url.service';
+import { UrlResponse, UrlService } from '../services/url.service';
 import { AuthService } from '../services/auth.service';
-import { UrlMapping } from '../services/auth';
 
 @Component({
   selector: 'app-main',
@@ -12,47 +11,60 @@ import { UrlMapping } from '../services/auth';
   templateUrl: './main.html',
   styleUrl: './main.css'
 })
-export class Main implements OnInit {
+export class MainComponent implements OnInit {
   private fb = inject(FormBuilder);
   private urlSvc = inject(UrlService);
   private auth = inject(AuthService);
 
   form = this.fb.group({
-    originalUrl: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]]
+    url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]]
   });
 
-  urls = signal<UrlMapping[]>([]);
+  urls = signal<UrlResponse[]>([]);
   shortening = signal(false);
   loadingUrls = signal(false);
   shortenError = signal<string | null>(null);
+  loadError = signal<string | null>(null);
   newShortUrl = signal<string | null>(null);
   copiedId = signal<number | 'new' | null>(null);
   deletingId = signal<number | null>(null);
+  clearing = signal(false);
 
-  get originalUrl() { return this.form.get('originalUrl')!; }
+  get url() { return this.form.get('url')!; }
 
   ngOnInit() { this.loadUrls(); }
 
   loadUrls() {
     this.loadingUrls.set(true);
+    this.loadError.set(null);
     this.urlSvc.getUserUrls().subscribe({
-      next: data => { this.urls.set(data); this.loadingUrls.set(false); },
-      error: () => this.loadingUrls.set(false)
+      next: data => {
+        this.urls.set([...data].sort((a, b) => b.id - a.id));
+        this.loadingUrls.set(false);
+      },
+      error: () => {
+        this.loadError.set('Не удалось загрузить ваши ссылки.');
+        this.loadingUrls.set(false);
+      }
     });
   }
 
   submit() {
-    if (this.form.invalid || this.shortening()) return;
+    if (this.shortening()) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.shortenError.set(null);
     this.newShortUrl.set(null);
     this.shortening.set(true);
 
-    this.urlSvc.shorten({ originalUrl: this.originalUrl.value! }).subscribe({
+    this.urlSvc.shorten({ url: this.url.value! }).subscribe({
       next: res => {
         this.newShortUrl.set(res.shortUrl);
         this.shortening.set(false);
         this.form.reset();
-        this.loadUrls();
+        this.urls.update(urls => [res, ...urls.filter(url => url.id !== res.id)]);
       },
       error: (err: HttpErrorResponse) => {
         this.shortening.set(false);
@@ -72,11 +84,23 @@ export class Main implements OnInit {
     });
   }
 
-  delete(id: number) {
+  deleteUrl(id: number) {
     this.deletingId.set(id);
     this.urlSvc.deleteUrl(id).subscribe({
       next: () => { this.urls.update(l => l.filter(u => u.id !== id)); this.deletingId.set(null); },
       error: () => this.deletingId.set(null)
+    });
+  }
+
+  clear() {
+    if (this.urls().length === 0 || this.clearing()) return;
+    this.clearing.set(true);
+    this.urlSvc.clearUrls().subscribe({
+      next: () => {
+        this.urls.set([]);
+        this.clearing.set(false);
+      },
+      error: () => this.clearing.set(false)
     });
   }
 
@@ -85,10 +109,6 @@ export class Main implements OnInit {
   logout() { this.auth.logout(); }
 
   truncate(url: string, max = 55) {
-    return url.length > max ? url.slice(0, max) + '…' : url;
-  }
-
-  fmtDate(s: string) {
-    return new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+    return url.length > max ? `${url.slice(0, max)}...` : url;
   }
 }

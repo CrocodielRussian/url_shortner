@@ -238,6 +238,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.25rem;
 }
 
@@ -248,13 +249,18 @@
   letter-spacing: -.02em;
 }
 
-.refresh-btn {
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.refresh-btn,
+.clear-btn {
   display: flex;
   align-items: center;
   gap: .45rem;
   padding: .48rem .9rem;
-  background: #fff;
-  color: #5a5a65;
   border: 1.5px solid rgba(13,13,15,.1);
   border-radius: 8px;
   font-family: 'DM Sans', sans-serif;
@@ -263,10 +269,24 @@
   transition: all .2s;
 }
 
+.refresh-btn {
+  background: #fff;
+  color: #5a5a65;
+}
+
+.clear-btn {
+  background: #fff6f4;
+  color: #c0302a;
+}
+
 .refresh-btn:hover:not(:disabled) { border-color: #d4541a; color: #d4541a; }
-.refresh-btn:disabled { opacity: .5; cursor: not-allowed; }
+.clear-btn:hover:not(:disabled) { border-color: #ffc8c5; background: #fff0ef; }
+.refresh-btn:disabled,
+.clear-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }
+
+.table-error { margin: -.6rem 0 1rem; color: #c0302a; }
 
 /* ── Skeletons ── */
 .skeletons { display: flex; flex-direction: column; gap: .75rem; }
@@ -355,22 +375,6 @@
 
 .long-url { color: #5a5a65; font-size: .82rem; }
 
-.date-cell { color: #9090a0; font-size: .79rem; white-space: nowrap; }
-
-.click-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  padding: .18rem .5rem;
-  background: #f5f4f0;
-  border-radius: 20px;
-  font-size: .75rem;
-  font-weight: 600;
-}
-
-.click-badge--muted { background: transparent; color: #b0b0ba; }
-
 .actions-cell {
   display: flex;
   align-items: center;
@@ -423,6 +427,15 @@
 @media (max-width: 640px) {
   .content { padding: 1.5rem 1rem 3rem; }
   .shorten-card { padding: 1.5rem; }
-  .shorten-btn span { display: none; }
+  .input-row { align-items: stretch; flex-direction: column; padding: .75rem; }
+  .input-icon { display: none; }
+  .url-input { width: 100%; padding: .35rem 0 .8rem; }
+  .shorten-btn { width: 100%; justify-content: center; margin: 0; }
+  .result-row { align-items: stretch; flex-direction: column; }
+  .copy-btn { justify-content: center; }
+  .table-header { align-items: flex-start; flex-direction: column; }
+  .table-actions { width: 100%; }
+  .refresh-btn,
+  .clear-btn { flex: 1; justify-content: center; }
   .table-title { font-size: 1.25rem; }
 }
