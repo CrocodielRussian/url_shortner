@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +48,10 @@ public class UrlService {
     public List<Url> getUserUrls() {
         User user = getCurrentUser();
         return urlRepository.findByUserId(user.getId());
+    }
+
+    public Optional<Url> findByShortUrl(String shortUrl) {
+        return urlRepository.findByShortUrl(shortUrl);
     }
 
     private User getCurrentUser() {
