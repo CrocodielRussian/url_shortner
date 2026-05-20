@@ -17,6 +17,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override public String getUsername() { return user.getUsername(); }
     @Override public String getPassword() { return user.getPassword(); }
+    public User getUser() { return user; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

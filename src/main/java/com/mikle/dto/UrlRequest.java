@@ -10,5 +10,5 @@ import lombok.Setter;
 @Setter
 public class UrlRequest {
     @NotBlank
-    private String shortUrl;
+    private String url;
 }

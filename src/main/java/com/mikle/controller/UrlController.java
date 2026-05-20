@@ -1,32 +1,56 @@
 package com.mikle.controller;
 
-
 import com.mikle.dto.UrlRequest;
+import com.mikle.dto.UrlResponse;
 import com.mikle.model.Url;
 import com.mikle.service.UrlService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/url")
+@RequiredArgsConstructor
 public class UrlController {
-    @Autowired
-    private UrlService urlService;
 
+    private final UrlService urlService;
 
     @PostMapping
-    public ResponseEntity<Url> add(@RequestBody UrlRequest request) {
-        try {
-            Url shortUrl = urlService.addUrl(request.getShortUrl());
-            return ResponseEntity.ok(shortUrl);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(null);
-        }
+    public ResponseEntity<UrlResponse> add(@RequestBody UrlRequest request) {
+        Url url = urlService.addUrl(request.getUrl());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(toResponse(url));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UrlResponse>> getUrls() {
+        List<UrlResponse> urls = urlService.getUserUrls()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        return ResponseEntity.ok(urls);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        urlService.deleteUrl(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> clearUrls() {
+        urlService.clearUrls();
+        return ResponseEntity.ok().build();
+    }
+
+    private UrlResponse toResponse(Url url) {
+        return new UrlResponse(
+                url.getId(),
+                "http://localhost/" + url.getShortUrl(),
+                url.getLongUrl()
+        );
     }
 }
-
