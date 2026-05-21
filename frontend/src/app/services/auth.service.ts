@@ -1,20 +1,14 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
-import { catchError,  map, tap } from 'rxjs/operators';
-import { Router } from '@angular/router';
-import { Auth } from './auth';
-import { environment } from '../../environments/environment.prod';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+
+import { environment } from '../../environments/environment';
+import { LoginRequest, LoginResponse } from './auth';
 
 export interface User {
-  id: string;
+  id?: string;
   username: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
 }
 
 @Injectable({
@@ -22,31 +16,33 @@ export interface AuthResponse {
 })
 export class AuthService {
   private apiUrl = environment.apiUrl + '/api/auth';
+
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-
   constructor(private http: HttpClient) {
-     this.loadUserFromToken();
+    this.loadUserFromToken();
   }
 
-  register(username: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, {
+  register(username: string, password: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/register`, {
       username,
-      password,
-    })
-    .pipe(
+      password
+    });
+  }
+
+  login(username: string, password: string): Observable<LoginResponse>;
+  login(credentials: LoginRequest): Observable<LoginResponse>;
+  login(credentialsOrUsername: LoginRequest | string, password?: string): Observable<LoginResponse> {
+    const credentials: LoginRequest =
+      typeof credentialsOrUsername === 'string'
+        ? { username: credentialsOrUsername, password: password ?? '' }
+        : credentialsOrUsername;
+
+    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => this.handleAuthResponse(response))
     );
   }
-
-  login(username: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, { username, password })
-    .pipe(
-      tap(response => this.handleAuthResponse(response))
-    );
-  }
-
 
   logout(): void {
     localStorage.removeItem('token');
@@ -56,34 +52,90 @@ export class AuthService {
   getToken(): string | null {
     return localStorage.getItem('token');
   }
-  private handleAuthResponse(response: AuthResponse): void {
+
+  isAuthenticated(): boolean {
+    const token = this.getToken();
+
+    if (!token) {
+      return false;
+    }
+
+    const payload = this.parseJwt(token);
+
+    if (!payload) {
+      this.logout();
+      return false;
+    }
+
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      this.logout();
+      return false;
+    }
+
+    return true;
+  }
+
+  private handleAuthResponse(response: LoginResponse): void {
     localStorage.setItem('token', response.token);
-    this.currentUserSubject.next(response.user);
+
+    const user = this.getUserFromToken(response.token);
+    this.currentUserSubject.next(user);
   }
 
   private loadUserFromToken(): void {
     const token = this.getToken();
-    if (token) {
-      const payload = this.parseJwt(token);
-      const user: User = {
-        id: payload.sub,
-        username: payload.username,
-        password: payload.password
-      };
-      this.currentUserSubject.next(user);
+
+    if (!token) {
+      return;
     }
+
+    if (!this.isAuthenticated()) {
+      return;
+    }
+
+    const user = this.getUserFromToken(token);
+    this.currentUserSubject.next(user);
   }
 
-  private parseJwt(token: string): any {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-    );
-    return JSON.parse(jsonPayload);
+  private getUserFromToken(token: string): User | null {
+    const payload = this.parseJwt(token);
+
+    if (!payload) {
+      return null;
+    }
+
+    const username = payload.username ?? payload.sub;
+
+    if (!username) {
+      return null;
+    }
+
+    return {
+      id: payload.id ?? payload.userId ?? payload.sub,
+      username
+    };
   }
 
-  isAuthenticated(): boolean {
-    return !!this.getToken();
+  private parseJwt(token: string): any | null {
+    try {
+      const base64Url = token.split('.')[1];
+
+      if (!base64Url) {
+        return null;
+      }
+
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(char => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+
+      return JSON.parse(jsonPayload);
+    } catch {
+      return null;
+    }
   }
 }

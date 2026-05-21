@@ -2,9 +2,10 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
+
 import { UrlService } from '../services/url.service';
 import { AuthService } from '../services/auth.service';
-import { UrlMapping } from '../services/auth';
+import { UrlMapping, ShortenResponse } from '../services/auth';
 
 @Component({
   selector: 'app-main',
@@ -29,26 +30,45 @@ export class Main implements OnInit {
   copiedId = signal<number | 'new' | null>(null);
   deletingId = signal<number | null>(null);
 
-  get originalUrl() { return this.form.get('originalUrl')!; }
+  get originalUrl() {
+    return this.form.get('originalUrl')!;
+  }
 
-  ngOnInit() { this.loadUrls(); }
+  ngOnInit(): void {
+    this.loadUrls();
+  }
 
-  loadUrls() {
+  loadUrls(): void {
     this.loadingUrls.set(true);
+
     this.urlSvc.getUserUrls().subscribe({
-      next: data => { this.urls.set(data); this.loadingUrls.set(false); },
-      error: () => this.loadingUrls.set(false)
+      next: (data: UrlMapping[]) => {
+        this.urls.set(data);
+        this.loadingUrls.set(false);
+      },
+      error: () => {
+        this.loadingUrls.set(false);
+      }
     });
   }
 
-  submit() {
-    if (this.form.invalid || this.shortening()) return;
+  submit(): void {
+    if (this.form.invalid || this.shortening()) {
+      return;
+    }
+
+    const originalUrl = this.originalUrl.value;
+
+    if (!originalUrl) {
+      return;
+    }
+
     this.shortenError.set(null);
     this.newShortUrl.set(null);
     this.shortening.set(true);
 
-    this.urlSvc.shorten({ originalUrl: this.originalUrl.value! }).subscribe({
-      next: res => {
+    this.urlSvc.shortenUrl(originalUrl).subscribe({
+      next: (res: ShortenResponse) => {
         this.newShortUrl.set(res.shortUrl);
         this.shortening.set(false);
         this.form.reset();
@@ -59,36 +79,54 @@ export class Main implements OnInit {
         this.shortenError.set(
           err.status === 400
             ? 'Некорректный URL. Проверьте формат.'
-            : (err.error?.message ?? 'Не удалось сократить ссылку.')
+            : err.error?.message ?? 'Не удалось сократить ссылку.'
         );
       }
     });
   }
 
-  copy(text: string, id: number | 'new') {
+  copy(text: string, id: number | 'new'): void {
     navigator.clipboard.writeText(text).then(() => {
       this.copiedId.set(id);
       setTimeout(() => this.copiedId.set(null), 2000);
     });
   }
 
-  delete(id: number) {
+  delete(id: number): void {
     this.deletingId.set(id);
+
     this.urlSvc.deleteUrl(id).subscribe({
-      next: () => { this.urls.update(l => l.filter(u => u.id !== id)); this.deletingId.set(null); },
-      error: () => this.deletingId.set(null)
+      next: () => {
+        this.urls.update(urls => urls.filter(url => url.id !== id));
+        this.deletingId.set(null);
+      },
+      error: () => {
+        this.deletingId.set(null);
+      }
     });
   }
 
-  open(url: string) { window.open(url, '_blank'); }
+  open(url: string): void {
+    window.open(url, '_blank');
+  }
 
-  logout() { this.auth.logout(); }
+  logout(): void {
+    this.auth.logout();
+  }
 
-  truncate(url: string, max = 55) {
+  truncate(url: string, max = 55): string {
     return url.length > max ? url.slice(0, max) + '…' : url;
   }
 
-  fmtDate(s: string) {
-    return new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+  fmtDate(s?: string): string {
+    if (!s) {
+      return '';
+    }
+
+    return new Date(s).toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   }
 }

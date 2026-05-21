@@ -141,12 +141,12 @@
               @for (url of urls(); track url.id) {
                 <tr class="trow" [class.trow--deleting]="deletingId() === url.id">
                   <td>
-                    <a [href]="url.shortUrl" target="_blank" class="short-link">{{ url.shortCode }}</a>
+                    <a [href]="url.shortUrl" target="_blank" class="short-link">{{ url.shortUrl }}</a>
                   </td>
                   <td>
                     <span class="long-url" [title]="url.originalUrl">{{ truncate(url.originalUrl) }}</span>
                   </td>
-                  <td class="date-cell">{{ fmtDate(url.createdAt) }}</td>
+                  <td class="date-cell"> {{ url.createdAt ? fmtDate(url.createdAt) : '—' }} </td>
                   <td>
                     <span class="click-badge" [class.click-badge--muted]="url.clickCount === undefined">
                       {{ url.clickCount !== undefined ? url.clickCount : '—' }}
