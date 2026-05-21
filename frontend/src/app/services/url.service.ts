@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { ShortenResponse, UrlMapping } from './auth';
+import { ShortenResponse, UrlMapping, UrlApiResponse } from './auth';
 
 @Injectable({
   providedIn: 'root'
@@ -29,5 +29,19 @@ export class UrlService {
 
   clearUrls(): Observable<void> {
     return this.http.delete<void>(this.apiUrl);
+  }
+  private toUrlMapping(response: UrlApiResponse): UrlMapping {
+    return {
+      id: response.id,
+      shortCode: this.extractShortCode(response.shortUrl),
+      shortUrl: response.shortUrl,
+      originalUrl: response.longUrl,
+      createdAt: response.createdAt,
+      clickCount: response.clickCount
+    };
+  }
+
+  private extractShortCode(shortUrl: string): string {
+    return shortUrl.split('/').filter(Boolean).pop() ?? shortUrl;
   }
 }

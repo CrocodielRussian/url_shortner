@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 import { UrlService } from '../services/url.service';
 import { AuthService } from '../services/auth.service';
@@ -17,6 +18,7 @@ export class Main implements OnInit {
   private fb = inject(FormBuilder);
   private urlSvc = inject(UrlService);
   private auth = inject(AuthService);
+  private router = inject(Router);
 
   form = this.fb.group({
     originalUrl: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]]
@@ -76,6 +78,7 @@ export class Main implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.shortening.set(false);
+
         this.shortenError.set(
           err.status === 400
             ? 'Некорректный URL. Проверьте формат.'
@@ -88,7 +91,10 @@ export class Main implements OnInit {
   copy(text: string, id: number | 'new'): void {
     navigator.clipboard.writeText(text).then(() => {
       this.copiedId.set(id);
-      setTimeout(() => this.copiedId.set(null), 2000);
+
+      setTimeout(() => {
+        this.copiedId.set(null);
+      }, 2000);
     });
   }
 
@@ -112,18 +118,23 @@ export class Main implements OnInit {
 
   logout(): void {
     this.auth.logout();
+    this.router.navigate(['/login']);
   }
 
-  truncate(url: string, max = 55): string {
+  truncate(url?: string | null, max = 55): string {
+    if (!url) {
+      return '—';
+    }
+
     return url.length > max ? url.slice(0, max) + '…' : url;
   }
 
-  fmtDate(s?: string): string {
-    if (!s) {
-      return '';
+  fmtDate(value?: string | null): string {
+    if (!value) {
+      return '—';
     }
 
-    return new Date(s).toLocaleDateString('ru-RU', {
+    return new Date(value).toLocaleDateString('ru-RU', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
